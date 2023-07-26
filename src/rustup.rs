@@ -17,6 +17,8 @@ use std::time::Duration;
 use std::{fs, io};
 use thiserror::Error;
 use tokio::task::JoinError;
+use sha256::digest;
+
 
 // The allowed platforms to validate the configuration
 // Note: These platforms should match the list on https://rust-lang.github.io/rustup/installation/other.html
@@ -370,10 +372,16 @@ pub fn rustup_download_list(
                             .map(|urls| {
                                 let mut v = Vec::new();
                                 if download_gz {
-                                    v.push((urls.url, urls.hash));
+                                    let pos=urls.url.rfind("/").unwrap();
+                                    let (_,lst)=urls.url.split_at(pos+1);
+                                    v.push((urls.url.clone(), urls.hash.clone()));
+                                    v.push((format!("{}.sha256",urls.url),  sha256_file_hash(lst,urls.hash)));
                                 }
                                 if download_xz {
-                                    v.push((urls.xz_url, urls.xz_hash));
+                                    let pos=urls.xz_url.rfind("/").unwrap();
+                                    let (_,lst)=urls.xz_url.split_at(pos+1);
+                                    v.push((urls.xz_url.clone(), urls.xz_hash.clone()));
+                                    v.push((format!("{}.sha256",urls.xz_url),  sha256_file_hash(lst,urls.xz_hash)));
                                 }
 
                                 v
@@ -389,6 +397,12 @@ pub fn rustup_download_list(
             .collect(),
     ))
 }
+
+fn sha256_file_hash(filename:&str,hash:String)->String{
+    let sha256content=format!("{}  {}\n",hash,filename);
+    digest(sha256content)
+}
+
 
 pub async fn sync_one_rustup_target(
     client: &Client,
